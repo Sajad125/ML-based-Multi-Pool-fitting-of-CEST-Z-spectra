@@ -1,4 +1,4 @@
-# ML-based-Multi-Pool-fitting-of-CEST-spectra
+# ML-based-Multi-Pool-fitting-of-Z-spectra
 Based on the paper published in MRM with the title "Machine-Learning based multi-pool Voigt fitting of chemical exchange saturation transfer (CEST) Z-spectra". The code here presents a framework to set up and train a CatBoost-regressor for the own saturation frequency protocol and targeted solute pools. 
 
 In our application we used 74 saturation frequency points between -20 and 20 ppm and the targeted pools were NOE(-3.6), NOE(-2), water, amine and amide groups located at offset frequencies -3.6, - 2, 0, 2 and 3.6 ppm respectively. These should be changed to the own protocol and targeted pools.
