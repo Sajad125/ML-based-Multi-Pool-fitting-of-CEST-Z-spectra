@@ -5,8 +5,6 @@ import numpy as np
 from lmfit.models import VoigtModel, LorentzianModel, ConstantModel
 from catboost import CatBoostRegressor
 
-#%% Least-squares Mutli Peak models
-
 class MultiPeakModels:
     def __init__(self, x_values, no_of_peaks = 4, peak_positions = np.r_[-2.8, 2., 3.6], spectral_model = 'voigt'):
         self.x_values = x_values# saturation frequencies in context of Z-spectra
@@ -122,39 +120,3 @@ class MultiPeakModels:
         tracker = np.asarray(tracker)        
         return s[tracker], l[tracker]#, f[tracker]
 
-#%% Preparing data for catbooststart model
-
-saturation_frequencies = '' # saturation frequency protocol
-
-Voigt = MultiPeakModels(x_values = saturation_frequencies,spectral_model = 'voigt')
-
-spectra_from_slice = "" # Expected shape None, saturation_frequencies.shape()
-
-model_voigt,params_voigt = Voigt.create_fit_model_precise(peak_p = np.asarray(None))
-
-params_LS_slice = []
-for spectrum in spectra_from_slice:
-    params_LS_slice.append(Voigt.ls_fit(saturation_frequencies,spectrum,model_voigt,params_voigt))
-params_LS_slice = np.asarray(params_LS_slice)
-fits_from_slice = Voigt.fitted_spectra(params_LS_slice)
-
-spectra_from_slice_filtered, params_LS_slice_filtered = Voigt.filter_spectra(spectra_from_slice,fits_from_slice,params_LS_slice)
-    
-
-#%% Training a CatBoostRegressor for Five pool voigt fitting
-spectra_from_brains = "" # Expected shape None, saturation_frequencies.shape()
-
-params_LS_brains = []
-for i,spectrum in enumerate(spectra_from_brains):
-    m,p= Voigt.create_fit_model_precise(peak_p = np.asarray(None))
-    params_LS_brains.append(Voigt.ls_fit(saturation_frequencies,spectrum,m,p))
-
-params_LS_brains = np.asarray(params_LS_brains)
-fits_from_brains = Voigt.fitted_spectra(params_LS_brains)
-
-spectra_from_brains_filtered, params_LS_brains_filtered = Voigt.filter_spectra(spectra_from_brains, fits_from_brains, params_LS_brains)
-
-FPV_ML = CatBoostRegressor(iterations = 250000 ,**params)
-FPV_ML.fit(spectra_from_brains_filtered, params_LS_brains_filtered, early_stopping_rounds=5000)
-
-FPV_ML.save_model("FPV_ML")
