@@ -6,13 +6,12 @@ from lmfit.models import VoigtModel, LorentzianModel, ConstantModel
 from catboost import CatBoostRegressor
 
 class MultiPeakModels:
-    def __init__(self, x_values, no_of_peaks = 4, peak_positions = np.r_[-2.8, 2., 3.6], spectral_model = 'voigt'):
+    def __init__(self, x_values, no_of_peaks = 4, peak_positions = np.r_[-2.8, 2., 3.6], spectral_model = 'voigt',ml_params = 'default'):
         self.x_values = x_values# saturation frequencies in context of Z-spectra
         self.no_of_peaks = no_of_peaks
         self.peak_positions = peak_positions
         self.spectral_model = spectral_model
         self.pars = {"bkg_c":list(),"lz0_center":list() }
-        
         if self.spectral_model == 'lorentzian':    
             for s in range(len(peak_positions)+1):
                 self.pars[f"lz{s}_amplitude"] = list() 
@@ -22,6 +21,19 @@ class MultiPeakModels:
                 self.pars[f"lz{s}_amplitude"] = list() 
                 self.pars[f"lz{s}_sigma"] = list()
                 self.pars[f"lz{s}_gamma"] = list() 
+                
+        
+        if ml_params == 'default':
+            self.ml_params = {'learning_rate': 0.1, 'depth':6, 'loss_function': 'MultiRMSE',
+                      'eval_metric': 'MultiRMSE', 'iterations':15000, 'task_type':'GPU',
+                      'max_ctr_complexity':15,'l2_leaf_reg':25,'boosting_type': 'Plain',
+                      'feature_border_type':'GreedyLogSum','eval_fraction':.05,
+                      'early_stopping_rounds':100}
+        else:
+            self.ml_params = ml_params
+        self.ml_model = CatBoostRegressor(**self.ml_params)
+        self.ml_model_trained = False
+        
                     
     def add_peak(self, prefix, DS = False, center = 0, amplitude=0.5, sigma=0.3, gamma=0.3, p = 0):
         if self.spectral_model == 'voigt':
@@ -118,5 +130,12 @@ class MultiPeakModels:
             if np.mean(j) <threshold:
                 tracker.append(i)
         tracker = np.asarray(tracker)        
-        return s[tracker], l[tracker]#, f[tracker]
+        return s[tracker], l[tracker]
+    
+    def train_ml_model(self,train_samples,train_labels,save_path = 'ml_model'):
+        self.ml_model.fit(train_samples,train_labels)
+        self.ml_model.save_model(save_path)
+        print('Training sucessful')
+        self.ml_model_trained = True
+        return self.ml_model
 
