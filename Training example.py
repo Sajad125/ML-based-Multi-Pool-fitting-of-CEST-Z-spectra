@@ -8,6 +8,11 @@ Created on Mon Dec  2 04:12:01 2024
 from ML_based_Multi_Peak_Fitting import MultiPeakModels
 import numpy as np
 #%% Training a CatBoostRegressor for Five pool voigt fitting
+params = {'learning_rate': 0.1, 'depth':6, 'loss_function': 'MultiRMSE',
+          'eval_metric': 'MultiRMSE', 'iterations':15000, 'task_type':'GPU',
+          'max_ctr_complexity':15,'l2_leaf_reg':25,'boosting_type': 'Plain',
+          'feature_border_type':'GreedyLogSum','eval_fraction':.05,
+          'early_stopping_rounds':100}
 
 saturation_frequencies = '' # saturation frequency protocol
 
