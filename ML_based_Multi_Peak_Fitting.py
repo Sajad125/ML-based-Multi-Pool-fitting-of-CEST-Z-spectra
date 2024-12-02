@@ -14,6 +14,7 @@ class MultiPeakModels:
         self.peak_positions = peak_positions
         self.spectral_model = spectral_model
         self.pars = {"bkg_c":list(),"lz0_center":list() }
+        
         if self.spectral_model == 'lorentzian':    
             for s in range(len(peak_positions)+1):
                 self.pars[f"lz{s}_amplitude"] = list() 
@@ -101,11 +102,11 @@ class MultiPeakModels:
         if self.spectral_model == 'lorentzian':
             for key in self.pars.keys():
                 parameters.append(params_raw[key].value)
-            return np.asarray(parameters)[[0,2,1,3,4,5,6,7,8,9,10]]
+            return np.asarray(parameters)[[0,2,1,3,4,5,6,7,8,9]]
         elif self.spectral_model == 'voigt':
             for key in self.pars.keys():
                 parameters.append(params_raw[key].value)
-            return np.asarray(parameters)[[0,2,1,3,4,5,6,7,8,9,10,11,12,13,14]]
+            return np.asarray(parameters)[[0,2,1,3,4,5,6,7,8,9,10,11,12,13]]
     
     def ls_fit(self, freqdata, Zspectrum, model, params):
         result = model.fit(Zspectrum, params, x=self.x_values, method = 'slsqp')
@@ -125,7 +126,7 @@ class MultiPeakModels:
 
 saturation_frequencies = '' # saturation frequency protocol
 
-Voigt = MultiPeakModels(x_values = saturation_frequencies,model = 'voigt')
+Voigt = MultiPeakModels(x_values = saturation_frequencies,spectral_model = 'voigt')
 
 spectra_from_slice = "" # Expected shape None, saturation_frequencies.shape()
 
