@@ -17,8 +17,8 @@ class MultiPeakModels:
     A class for handling multi-peak spectral models with machine learning capabilities.
     
     Attributes:
-        x_values (np.ndarray): Saturation frequencies.
-        no_of_peaks (int): Number of peaks to model.
+        x_values (np.ndarray): Saturation frequencies in the CEST application.
+        no_of_peaks (int): Number of peaks to model in the targeted spectra.
         peak_positions (np.ndarray): Predefined peak positions.
         spectral_model (str): Type of spectral model ('voigt' or 'lorentzian').
     """
@@ -42,6 +42,7 @@ class MultiPeakModels:
         
         # Initialize parameters dictionary
         self._pars = self._initialize_parameters()
+        self._parsd = self._initialize_parameters_derived()
         
         # Set ML parameters
         self.ml_params = self._get_default_ml_params() if ml_params is None else ml_params
@@ -56,13 +57,23 @@ class MultiPeakModels:
         
         # Add parameters based on spectral model
         peak_count = len(self.peak_positions) + 1
-        for s in range(peak_count):
-            pars[f"lz{s}_amplitude"] = []
-            pars[f"lz{s}_sigma"] = []
+        for p in range(peak_count):
+            pars[f"lz{p}_amplitude"] = []
+            pars[f"lz{p}_sigma"] = []
             
             if self.spectral_model == 'voigt':
-                pars[f"lz{s}_gamma"] = []
+                pars[f"lz{p}_gamma"] = []
+        return pars
+    
+    def _initialize_parameters_derived(self) -> dict:
+        """Initialize parameters dictionary based on spectral model."""
+        pars = {"bkg_c": [], "lz0_center": []}
         
+        # Add parameters based on spectral model
+        peak_count = len(self.peak_positions) + 1
+        for p in range(peak_count):
+            pars[f"lz{p}_height"] = []
+            pars[f"lz{p}_fwhm"] = []
         return pars
     
     def _get_default_ml_params(self) -> dict:
@@ -97,12 +108,12 @@ class MultiPeakModels:
         
         Args:
             prefix (str): Prefix for the peak parameters.
-            DS (bool): Whether to use direct setting of center.
-            center (float): Peak center.
+            DS (bool): Whether it is the center peak or not.
+            center (float): Peak center value.
             amplitude (float): Peak amplitude.
             sigma (float): Peak sigma.
             gamma (float): Peak gamma (for Voigt model).
-            p (float): Peak position offset.
+            p (float): Peak position offset if not the center peak.
         
         Returns:
             tuple: Peak model and its parameters.
@@ -140,15 +151,6 @@ class MultiPeakModels:
             
             return peak, pars
     
-    def _sort_params(self, values):
-        """Internal method to sort parameters based on spectral model."""
-        if self.spectral_model == 'voigt':
-            return [[values[0]], values[1:5], values[5:8], values[8:11], values[11:14]]
-        elif self.spectral_model == 'lorentzian':
-            return [[values[0]], values[1:4], values[4:6], values[6:8], values[8:10]]
-        else:
-            raise ValueError('Only Voigt and Lorentzian line shapes currently available')
-    
     def _create_fit_model_precise(self, peak_p = np.asarray(None)):
         """Generates a model and the corresponding parameters based on the defined
         spectral model and number of peaks"""
@@ -169,46 +171,45 @@ class MultiPeakModels:
             
             model = ConstantModel(prefix='bkg_')
             params = model.make_params(c=peak_p[0][0])
-            peak, pars = self._add_peak('lz0_', True, amplitude=peak_p[1][0], center=peak_p[1][1], sigma=peak_p[1][2], gamma=peak_p[1][3])
+            if self.spectral_model == 'voigt':
+                peak, pars = self._add_peak('lz0_', True, amplitude=peak_p[1][0], center=peak_p[1][1], sigma=peak_p[1][2], gamma=peak_p[1][3])
+            elif self.spectral_model == 'lorentzian':
+                peak, pars = self._add_peak('lz0_', True, amplitude=peak_p[1][0], center=peak_p[1][1], sigma=peak_p[1][2])
             model = model + peak
             params.update(pars)
             for i, peak in enumerate(peak_p[2:]):
-                peak, pars = self._add_peak('lz%d_' % (i+1), DS=False, amplitude=peak[0], sigma=peak[1], gamma=peak[2], p=self.peak_positions[i])
+                if self.spectral_model =='voigt':
+                    peak, pars = self._add_peak('lz%d_' % (i+1), DS=False, amplitude=peak[0], sigma=peak[1], gamma=peak[2], p=self.peak_positions[i])
+                elif self.spectral_model == 'lorentzian':
+                    peak, pars = self._add_peak('lz%d_' % (i+1), DS=False, amplitude=peak[0], sigma=peak[1], p=self.peak_positions[i])
                 model = model + peak
                 params.update(pars)
             return model, params
         else:
             raise ValueError('peak_p must be None or np.ndarray with shape 14 (voigt) or 10 (Lorentzian)')
-
-    def fitted_spectra(self, labels):
-        samples = []
-        for label in labels:
-            m, p = self._create_fit_model_precise(peak_p=label)
-            spectrum = m.eval(params=p, x=self.x_values)
-            samples.append(spectrum)
-        return np.asarray(samples)
     
-    def _extract_params(self, params_raw):
+    def _extract_params(self, params_raw, derived_params = False):
         """Internal method to extract parameters from raw parameter object."""
         parameters = []    
         
-        if self.spectral_model == 'lorentzian':
+        if self.spectral_model == 'lorentzian' or derived_params== True:
             for key in self._pars.keys():
                 parameters.append(params_raw[key].value)
             return np.asarray(parameters)[[0,2,1,3,4,5,6,7,8,9]]
         elif self.spectral_model == 'voigt':
             for key in self._pars.keys():
                 parameters.append(params_raw[key].value)
-            return np.asarray(parameters)[[0,2,1,3,4,5,6,7,8,9,10,11,12,13]]
+            return np.asarray(parameters)[[0,2,1,3,4,5,6,7,8,9,10,11,12,13]] 
     
-    def ls_fit(self, Zspectrum):
-        ls_params = []
-        model,params = self._create_fit_model_precise()
-        for i in Zspectrum:
-            result = model.fit(i, params, x=self.x_values, method='slsqp')
-            ls_params.append(self._extract_params(result.params))
-        return np.array(ls_params)
-
+    def _sort_params(self, values, derived_params = False):
+        """Internal method to sort parameters based on spectral model."""
+        if self.spectral_model == 'voigt' and derived_params ==False:
+            return [[values[0]], values[1:5], values[5:8], values[8:11], values[11:14]]
+        elif self.spectral_model == 'lorentzian' or derived_params == True:
+            return [[values[0]], values[1:4], values[4:6], values[6:8], values[8:10]]
+        else:
+            raise ValueError('Only Voigt and Lorentzian line shapes currently available')
+    
     def _filter_spectra(self, spectra,l=.25,u=.75,scale = 1.5):
         """Internal method to filter spectra based on a threshold."""
         q = spectra[:,0]-spectra[:,-1]
@@ -263,3 +264,23 @@ class MultiPeakModels:
             raise ModelNotTrainedError()
         
         return self.ml_model.predict(spectra)
+    
+    def ls_fit(self, Zspectrum, mode = 'raw params'):
+        ls_params = []
+        model,params = self._create_fit_model_precise()
+        
+        for i in Zspectrum:
+            result = model.fit(i, params, x=self.x_values, method='slsqp')
+            if mode == 'raw params':
+                ls_params.append(self._extract_params(result.params))
+            elif mode == 'derived params':
+                ls_params.append(self._extract_params(result.params,derived_params = True))  
+        return np.array(ls_params)
+    
+    def fitted_spectra(self, labels):
+        samples = []
+        for label in labels:
+            m, p = self._create_fit_model_precise(peak_p=label)
+            spectrum = m.eval(params=p, x=self.x_values)
+            samples.append(spectrum)
+        return np.asarray(samples)
