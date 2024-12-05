@@ -203,7 +203,7 @@ class MultiPeakModels:
     
     def ls_fit(self, Zspectrum):
         ls_params = []
-        model,params = self. _create_fit_model_precise()
+        model,params = self._create_fit_model_precise()
         for i in Zspectrum:
             result = model.fit(i, params, x=self.x_values, method='slsqp')
             ls_params.append(self._extract_params(result.params))
