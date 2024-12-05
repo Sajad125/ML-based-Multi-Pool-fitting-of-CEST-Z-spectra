@@ -5,6 +5,7 @@ import numpy as np
 from lmfit.models import VoigtModel, LorentzianModel, ConstantModel
 from catboost import CatBoostRegressor
 
+
 class ModelNotTrainedError(Exception):
     """Exception raised when attempting to use an untrained model."""
     
