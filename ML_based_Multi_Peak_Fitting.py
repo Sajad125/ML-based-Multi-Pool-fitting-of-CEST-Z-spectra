@@ -5,6 +5,12 @@ import numpy as np
 from lmfit.models import VoigtModel, LorentzianModel, ConstantModel
 from catboost import CatBoostRegressor
 
+class ModelNotTrainedError(Exception):
+   
+    def __init__(self, message="Model has not been trained"):
+        self.message = message
+        super().__init__(self.message)
+        
 class MultiPeakModels:
     def __init__(self, x_values, no_of_peaks = 4, peak_positions = np.r_[-2.8, 2., 3.6], spectral_model = 'voigt',ml_params = 'default'):
         self.x_values = x_values# saturation frequencies in context of Z-spectra
@@ -138,4 +144,9 @@ class MultiPeakModels:
         print('Training sucessful')
         self.ml_model_trained = True
         return self.ml_model
+    def ml_fit(self,spectra):
+        if self.ml_model.tree_count_ != None:
+            return self.ml_model.predict(spectra)
+        else:
+            raise ModelNotTrainedError()
 
