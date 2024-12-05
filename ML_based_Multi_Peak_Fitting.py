@@ -41,7 +41,7 @@ class MultiPeakModels:
             raise ValueError('Only Voigt and Lorentzian line shapes are currently available')
         
         # Initialize parameters dictionary
-        self.pars = self._initialize_parameters()
+        self._pars = self._initialize_parameters()
         
         # Set ML parameters
         self.ml_params = self._get_default_ml_params() if ml_params is None else ml_params
@@ -193,11 +193,11 @@ class MultiPeakModels:
         parameters = []    
         
         if self.spectral_model == 'lorentzian':
-            for key in self.pars.keys():
+            for key in self._pars.keys():
                 parameters.append(params_raw[key].value)
             return np.asarray(parameters)[[0,2,1,3,4,5,6,7,8,9]]
         elif self.spectral_model == 'voigt':
-            for key in self.pars.keys():
+            for key in self._pars.keys():
                 parameters.append(params_raw[key].value)
             return np.asarray(parameters)[[0,2,1,3,4,5,6,7,8,9,10,11,12,13]]
     
